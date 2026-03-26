@@ -5,4 +5,5 @@ export const PERMISSIONS = {
   canManageConfig: ['admin'],
   canCreateTrails: ['professor', 'admin'],
   canViewChat: ['aluno', 'professor', 'admin', 'monitor'],
+  canManageClasses: ['admin'],
 } satisfies Record<string, string[]>;
