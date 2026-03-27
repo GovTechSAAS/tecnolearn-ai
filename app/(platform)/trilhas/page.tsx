@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import { createClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -20,12 +21,16 @@ type Trail = {
 
 export default function TrilhasPage() {
   const permissions = usePermissions();
+  const { profile, loading: authLoading } = useAuth();
   const [trails, setTrails] = useState<Trail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchTrails() {
+      if (authLoading) return;
+      
+      setLoading(true);
       try {
         const supabase = createClient();
 
@@ -44,12 +49,32 @@ export default function TrilhasPage() {
           filteredTrails = filteredTrails.filter(t => t.published);
         }
 
-        // TODO: Mapear logic do progresso por usuário (tabela student_progress)
-        // Por hora, aplicaremos um progresso generico ou 0, para substituir depois com queries dinâmicas "join"
-        const mappedTrails = filteredTrails.map(t => ({
-          ...t,
-          progress: 0 // Mock temporário, necessita RPC ou join com student_progress count()
-        }));
+        // 2. Buscar todos os nós das trilhas (para contar o total)
+        const { data: nodesData } = await supabase
+          .from('trail_nodes')
+          .select('id, trail_id');
+
+        // 3. Buscar o progresso do aluno
+        const { data: progressData } = await supabase
+          .from('student_progress')
+          .select('node_id, status')
+          .eq('student_id', profile.id)
+          .eq('status', 'completed');
+
+        const completedNodeIds = new Set((progressData || []).map(p => p.node_id));
+
+        const mappedTrails = filteredTrails.map(t => {
+          const trailNodes = (nodesData || []).filter(n => n.trail_id === t.id);
+          const totalNodes = trailNodes.length;
+          const completedNodes = trailNodes.filter(n => completedNodeIds.has(n.id)).length;
+          
+          const progress = totalNodes > 0 ? Math.round((completedNodes / totalNodes) * 100) : 0;
+
+          return {
+            ...t,
+            progress
+          };
+        });
 
         setTrails(mappedTrails);
       } catch (err: any) {
@@ -61,7 +86,7 @@ export default function TrilhasPage() {
     }
 
     fetchTrails();
-  }, [permissions.canCreateTrails]);
+  }, [authLoading, profile, permissions.canCreateTrails]);
 
   const handleDeleteTrail = async (id: string, title: string) => {
     if (!confirm(`Tem certeza que deseja excluir a trilha "${title}"? Todos os nós e progresso dos alunos serão removidos.`)) {
@@ -70,15 +95,21 @@ export default function TrilhasPage() {
 
     try {
       const supabase = createClient();
+      console.log('Tentando excluir trilha:', id);
       const { error } = await supabase.from('learning_trails').delete().eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Delete error:', error);
+        throw error;
+      }
 
-      toast.success('Trilha excluída com sucesso');
+      // No Supabase, se o delete não afetar nada (RLS), ele não retorna erro mas também não deleta.
+      // Uma forma de validar é buscar se ainda existe ou assumir sucesso se não houver erro.
+      toast.success('Comando enviado. Verifique se a trilha sumiu (pode exigir permissão de RLS no Banco).');
       setTrails(prev => prev.filter(t => t.id !== id));
     } catch (err: any) {
       console.error(err);
-      toast.error('Erro ao excluir trilha: ' + err.message);
+      toast.error('Erro na exclusão: ' + (err.message || 'Verifique o Console'));
     }
   };
 

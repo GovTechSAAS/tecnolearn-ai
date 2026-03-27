@@ -39,6 +39,7 @@ CREATE TABLE learning_trails (
   subject TEXT NOT NULL,
   bimestre INT NOT NULL,
   published BOOLEAN DEFAULT false,
+  thumbnail_url TEXT,
   author_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -141,10 +142,12 @@ CREATE POLICY "Leitura de matriculas para autenticados" ON class_enrollments FOR
 ALTER TABLE attendance_records ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Leitura de chamadas para autenticados" ON attendance_records FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Inserção de chamadas para autenticados" ON attendance_records FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Atualização de chamadas para autenticados" ON attendance_records FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 
 ALTER TABLE attendance_entries ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Leitura de entradas para autenticados" ON attendance_entries FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Inserção de entradas para autenticados" ON attendance_entries FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Atualização de entradas para autenticados" ON attendance_entries FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 
 -- Professores/Admins podem persistir novas trilhas e conteudos
 -- NOTA: Validar Roles via RLS exige checagem na tabela profiles ou Claims em JWT personalizado
@@ -159,6 +162,18 @@ CREATE POLICY "Professores podem Atualizar suas Trilhas" ON learning_trails FOR 
 CREATE POLICY "Professores podem Deletar Topicos" ON trail_nodes FOR DELETE USING (auth.role() = 'authenticated');
 CREATE POLICY "Professores podem Atualizar Topicos" ON trail_nodes FOR UPDATE USING (auth.role() = 'authenticated');
 
+-- Políticas para student_progress
+ALTER TABLE student_progress ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Estudantes podem ver seu próprio progresso" ON student_progress;
+DROP POLICY IF EXISTS "Estudantes podem atualizar seu próprio progresso" ON student_progress;
+DROP POLICY IF EXISTS "Estudantes podem modificar seu próprio progresso" ON student_progress;
+
+CREATE POLICY "Gerenciar proprio progresso" ON student_progress
+FOR ALL
+TO authenticated
+USING (auth.uid() = student_id)
+WITH CHECK (auth.uid() = student_id);
+
 -- ========================================================
 -- SUPABASE STORAGE (Para hospedar os Vídeos "useMediaRecorder")
 -- ========================================================
@@ -168,3 +183,34 @@ insert into storage.buckets (id, name, public) values ('course-contents', 'cours
 -- Apenas Autenticados podem ler ou gravar mídias:
 CREATE POLICY "Acesso as mídias para estudantes" ON storage.objects FOR SELECT USING (bucket_id = 'course-contents' AND auth.role() = 'authenticated');
 CREATE POLICY "Professores podem fazer upload de vídeo" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'course-contents' AND auth.role() = 'authenticated');
+
+-- ========================================================
+-- AUDITORIA DE CHAMADA (Logs de Alteração)
+-- ========================================================
+CREATE TABLE attendance_change_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    record_id UUID REFERENCES attendance_records(id) ON DELETE CASCADE,
+    student_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    changed_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    old_status TEXT,
+    new_status TEXT,
+    justification TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE attendance_change_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Leitura de logs para professores e admins" ON attendance_change_logs
+FOR SELECT TO authenticated USING (
+    EXISTS (
+        SELECT 1 FROM profiles 
+        WHERE id = auth.uid() AND role IN ('professor', 'admin')
+    )
+);
+
+CREATE POLICY "Inserção de logs para professores e admins" ON attendance_change_logs
+FOR INSERT TO authenticated WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM profiles 
+        WHERE id = auth.uid() AND role IN ('professor', 'admin')
+    )
+);

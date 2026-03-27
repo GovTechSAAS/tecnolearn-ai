@@ -156,7 +156,13 @@ export default function EditarTrilhaPage() {
       if (trailError) throw trailError;
       
       // 2. Sync Nodes (Delete all and Re-insert is the safest way to maintain order/integrity)
-      await supabase.from('trail_nodes').delete().eq('trail_id', id);
+      console.log('Sincronizando nós para trilha:', id);
+      const { error: deleteNodesError } = await supabase.from('trail_nodes').delete().eq('trail_id', id);
+      
+      if (deleteNodesError) {
+        console.error('Erro ao limpar nós antigos:', deleteNodesError);
+        throw new Error('Não foi possível limpar os tópicos antigos. Verifique as permissões de DELETE no Supabase.');
+      }
 
       const nodesToInsert = await Promise.all(nodes.map(async (node, index) => {
         let contentUrl = node.content_url || null;
@@ -192,8 +198,8 @@ export default function EditarTrilhaPage() {
       router.refresh();
       
     } catch (err: any) {
-      console.error(err);
-      setError('Ocorreu um erro ao salvar a trilha. ' + (err.message || ''));
+      console.error('Erro detalhado no salvamento:', err);
+      setError('Ocorreu um erro ao salvar a trilha. Mensagem: ' + (err.message || 'Verifique o Console do Desenvolvedor'));
     } finally {
       setSaving(false);
     }

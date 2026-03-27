@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { CheckCircle2, Lock, PlayCircle, FileText, ArrowLeft, Trophy, Star, Clock, Loader2, AlertCircle, MessageSquareText, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 type TrailNode = {
@@ -31,55 +32,113 @@ export default function TrilhaMapPage({ params }: { params: Promise<{ id: string
   const [nodes, setNodes] = useState<TrailNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isFinishing, setIsFinishing] = useState(false);
+  const { profile, loading: authLoading } = useAuth();
+
+  const fetchData = useCallback(async () => {
+    if (authLoading || !profile) return;
+    
+    try {
+      const supabase = createClient();
+      
+      // 1. Get Trail Details
+      const { data: trailData, error: trailError } = await supabase
+        .from('learning_trails')
+        .select('id, title')
+        .eq('id', id)
+        .single();
+        
+      if (trailError) throw trailError;
+      setTrail(trailData);
+
+      // 2. Get Nodes
+      const { data: nodesData, error: nodesError } = await supabase
+        .from('trail_nodes')
+        .select('*')
+        .eq('trail_id', id)
+        .order('order_index', { ascending: true });
+        
+      if (nodesError) throw nodesError;
+
+      // 3. Get Student Progress
+      const nodeIds = (nodesData || []).map(n => n.id);
+      const { data: progressData } = await supabase
+        .from('student_progress')
+        .select('*')
+        .eq('student_id', profile.id)
+        .in('node_id', nodeIds);
+
+      const progressMap = new Map((progressData || []).map(p => [p.node_id, p.status]));
+
+      // 4. Map statuses
+      let lastCompleted = true; // First node is always unlocked if previous (none) is "completed"
+      const mappedNodes = (nodesData || []).map((n, i) => {
+        const dbStatus = progressMap.get(n.id);
+        let status = 'locked';
+
+        if (dbStatus === 'completed') {
+          status = 'completed';
+          lastCompleted = true;
+        } else if (lastCompleted) {
+          status = 'in-progress';
+          lastCompleted = false; // Next one will be locked
+        } else {
+          status = 'locked';
+        }
+        
+        return { ...n, status };
+      });
+      
+      setNodes(mappedNodes);
+    } catch (err: any) {
+       console.error(err);
+       setError('Erro ao carregar os dados da trilha.');
+    } finally {
+       setLoading(false);
+    }
+  }, [id, authLoading, profile]);
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const supabase = createClient();
-        
-        // 1. Get Trail Details
-        const { data: trailData, error: trailError } = await supabase
-          .from('learning_trails')
-          .select('id, title')
-          .eq('id', id)
-          .single();
-          
-        if (trailError) throw trailError;
-        setTrail(trailData);
-
-        // 2. Get Nodes
-        const { data: nodesData, error: nodesError } = await supabase
-          .from('trail_nodes')
-          .select('*')
-          .eq('trail_id', id)
-          .order('order_index', { ascending: true });
-          
-        if (nodesError) throw nodesError;
-
-        // Mapear nós e integrar um status "mock" por enquanto (já que ainda não temos updates pro student_progress neste scope UI)
-        // Em um app real, faríamos join com student_progress.
-        const mappedNodes = (nodesData || []).map((n, i) => {
-          let status = 'locked';
-          if (i === 0) status = 'completed';
-          if (i === 1) status = 'in-progress';
-          
-          return {
-             ...n,
-             status
-          };
-        });
-        
-        setNodes(mappedNodes);
-      } catch (err: any) {
-         console.error(err);
-         setError('Erro ao carregar os dados da trilha.');
-      } finally {
-         setLoading(false);
-      }
-    }
-    
     fetchData();
-  }, [id]);
+  }, [fetchData]);
+
+  const handleToggleCompletion = async (nodeId: string) => {
+    if (isFinishing || !profile) return;
+    setIsFinishing(true);
+
+    try {
+      console.log('Iniciando upsert de progresso:', { student_id: profile.id, node_id: nodeId });
+      const supabase = createClient();
+      const { error } = await supabase
+        .from('student_progress')
+        .upsert({
+          student_id: profile.id,
+          node_id: nodeId,
+          status: 'completed',
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Erro retornado pelo Supabase:', error);
+        throw error;
+      }
+
+      toast.success('Módulo concluído!');
+      setSelectedNode(null);
+      fetchData(); // Refresh UI
+    } catch (err: any) {
+      const errorMsg = err.message || JSON.stringify(err);
+      console.error('Erro detalhado capturado:', {
+        fullError: err,
+        message: err.message,
+        code: err.code,
+        status: err.status
+      });
+      toast.error('Erro ao salvar progresso: ' + errorMsg);
+    } finally {
+      setIsFinishing(false);
+    }
+  };
 
   const renderIcon = (type: string, status: string) => {
     if (status === 'locked') return <Lock className="w-6 h-6 text-zinc-400" />;
@@ -287,8 +346,13 @@ export default function TrilhaMapPage({ params }: { params: Promise<{ id: string
             <Button variant="outline" onClick={() => setSelectedNode(null)}>
               Fechar Módulo
             </Button>
-            <Button className="bg-[var(--primary)] text-white hover:bg-[#A93226]">
-              Marcar como Concluído
+            <Button 
+              className="bg-[var(--primary)] text-white hover:bg-[#A93226]"
+              onClick={() => selectedNode && handleToggleCompletion(selectedNode.id)}
+              disabled={isFinishing || selectedNode?.status === 'completed'}
+            >
+              {isFinishing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              {selectedNode?.status === 'completed' ? 'Já Concluído' : 'Marcar como Concluído'}
             </Button>
           </DialogFooter>
         </DialogContent>

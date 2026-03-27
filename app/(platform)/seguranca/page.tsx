@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { ShieldAlert, UserX, AlertTriangle, List, Eye, Loader2, CheckCircle2, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { useAuth } from '@/hooks/useAuth';
 import { useFaceApi } from '@/hooks/useFaceApi';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -27,7 +28,7 @@ export default function SegurancaPage() {
   const [activeTab, setActiveTab] = useState<'monitoramento' | 'blacklist'>('monitoramento');
   const [blacklist, setBlacklist] = useState<BlacklistData[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const { profile, loading: authLoading } = useAuth();
   const { compareFaces } = useFaceApi();
   const [lastDetectedId, setLastDetectedId] = useState<string | null>(null);
 
@@ -46,8 +47,9 @@ export default function SegurancaPage() {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
     fetchBlacklist();
-  }, [fetchBlacklist]);
+  }, [fetchBlacklist, authLoading, profile]);
 
   const handleDetect = useCallback((detectedDescriptor: Float32Array) => {
     if (!detectedDescriptor || blacklist.length === 0) return;
@@ -179,7 +181,7 @@ export default function SegurancaPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {(loading || (authLoading && !profile)) ? (
                <div className="py-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>
             ) : (
                 <div className="border border-border rounded-lg overflow-hidden">

@@ -23,7 +23,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   
-  const supabase = createClient();
+  // Stabilize the supabase client
+  const supabase = React.useMemo(() => createClient(), []);
 
   useEffect(() => {
     const fetchUserAndProfile = async () => {
@@ -54,6 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
+        console.log("Auth Event:", event);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         

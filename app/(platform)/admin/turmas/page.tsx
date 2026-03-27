@@ -23,6 +23,7 @@ import {
   Scan
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 import FaceCamera from '@/components/shared/FaceCamera';
 
 interface Student {
@@ -42,6 +43,7 @@ interface ClassModel {
 }
 
 export default function AdminTurmasPage() {
+  const { profile, loading: authLoading } = useAuth();
   const [view, setView] = useState<'import' | 'manage' | 'professors'>('manage');
   const [className, setClassName] = useState('');
   const [students, setStudents] = useState<Student[]>([]);
@@ -119,13 +121,15 @@ export default function AdminTurmasPage() {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
+
     if (view === 'manage' && !selectedClass) {
       fetchClasses();
     }
     if (view === 'professors' || (view === 'manage' && selectedClass)) {
         fetchAvailableProfessors();
     }
-  }, [view, selectedClass, fetchClasses, fetchAvailableProfessors]);
+  }, [view, selectedClass, fetchClasses, fetchAvailableProfessors, authLoading, profile]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
