@@ -10,7 +10,7 @@ export function useMediaRecorder() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  
+
   const streamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -52,24 +52,24 @@ export function useMediaRecorder() {
     setVideoBlob(null);
     // Usar a referência direta se possível ou apenas limpar se existir
     setPreviewUrl(prev => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
     });
   }, []); // Sem dependência de previewUrl!
 
   const start = useCallback(() => {
     if (!streamRef.current) return;
-    
+
     // Detect supported MIME type
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
       ? 'video/webm;codecs=vp9'
       : MediaRecorder.isTypeSupported('video/webm')
-      ? 'video/webm'
-      : 'video/mp4';
+        ? 'video/webm'
+        : 'video/mp4';
 
     chunksRef.current = [];
     const recorder = new MediaRecorder(streamRef.current, { mimeType });
-    
+
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) chunksRef.current.push(e.data);
     };
@@ -121,9 +121,9 @@ export function useMediaRecorder() {
     }
     setDuration(0);
     if (streamRef.current) {
-        setState('ready');
+      setState('ready');
     } else {
-        setState('idle');
+      setState('idle');
     }
   }, [previewUrl]);
 
@@ -132,7 +132,7 @@ export function useMediaRecorder() {
     const url = URL.createObjectURL(videoBlob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `tecnolearn-aula-${Date.now()}.${videoBlob.type.includes('mp4') ? 'mp4' : 'webm'}`;
+    a.download = `learnapp-aula-${Date.now()}.${videoBlob.type.includes('mp4') ? 'mp4' : 'webm'}`;
     a.click();
     URL.revokeObjectURL(url);
   }, [videoBlob]);

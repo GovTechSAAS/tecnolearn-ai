@@ -4,12 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
-import { 
-  LayoutDashboard, 
-  Map, 
-  Video, 
-  Camera, 
-  ShieldAlert, 
+import {
+  LayoutDashboard,
+  Map,
+  Video,
+  Camera,
+  ShieldAlert,
   MessageSquare,
   Settings,
   LogOut,
@@ -37,7 +37,7 @@ export function Sidebar() {
       <div className="h-16 flex items-center px-6 border-b border-border">
         <Link href="/dashboard" className="flex items-center gap-2 font-bold text-xl tracking-tight text-[var(--primary)] hover:opacity-80 transition-opacity">
           <BrainCircuit size={28} />
-          <span>tecnolearn</span>
+          <span>learnapp</span>
         </Link>
       </div>
 
@@ -46,14 +46,13 @@ export function Sidebar() {
           {navItems.filter(item => item.show).map((item) => {
             const isActive = pathname.startsWith(item.href);
             return (
-              <Link 
-                key={item.href} 
+              <Link
+                key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive 
-                    ? 'bg-red-50 text-[var(--primary)] dark:bg-red-950/30' 
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
+                    ? 'bg-red-50 text-[var(--primary)] dark:bg-red-950/30'
                     : 'text-muted-foreground hover:bg-zinc-100 hover:text-foreground dark:hover:bg-zinc-900'
-                }`}
+                  }`}
               >
                 <item.icon size={20} className={isActive ? 'text-[var(--primary)]' : ''} />
                 {item.name}
@@ -73,7 +72,7 @@ export function Sidebar() {
             <p className="text-xs text-muted-foreground capitalize">{profile?.role || ''}</p>
           </div>
         </div>
-        <button 
+        <button
           onClick={signOut}
           className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 font-medium rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
         >

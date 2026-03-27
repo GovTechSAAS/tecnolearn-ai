@@ -20,13 +20,13 @@ export async function POST(req: Request) {
       headers: {
         'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
         'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'Tecnolearn Platform',
+        'X-Title': 'learnapp Platform',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         model: 'nvidia/nemotron-3-super-120b-a12b:free', // Fallback fast model
         messages: [
-          { role: 'system', content: 'Você é o LUMI, o assistente educacional com Inteligência Artificial da plataforma Tecnolearn. Responda alunos de forma educada, em português brasileiro de forma clara e objetiva.' },
+          { role: 'system', content: 'Você é o LUMI, o assistente educacional com Inteligência Artificial da plataforma learnapp. Responda alunos de forma educada, em português brasileiro de forma clara e objetiva.' },
           ...messages
         ]
       })

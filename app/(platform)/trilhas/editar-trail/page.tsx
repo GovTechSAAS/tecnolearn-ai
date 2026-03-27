@@ -1,47 +1,102 @@
 "use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Plus, MoveUp, MoveDown, Trash2, Save, Loader2, Upload, Monitor } from 'lucide-react';
+import { ArrowLeft, Plus, MoveUp, MoveDown, Trash2, Save, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { ScreenRecorder } from '@/components/shared/ScreenRecorder';
+import { toast } from 'sonner';
 
-export default function CriarTrilhaPage() {
+type Node = {
+  id: string;
+  title: string;
+  type: string;
+  content_url?: string;
+  file?: File | null;
+};
+
+export default function EditarTrilhaPage() {
   const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
   const { profile } = useAuth();
   
   // Trail state
   const [title, setTitle] = useState('');
   const [subject, setSubject] = useState('');
   const [bimestre, setBimestre] = useState('1');
-  
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   
   // Nodes state
-  const [nodes, setNodes] = useState<{ id: string, title: string, type: string, file?: File | null, videoSource?: 'upload' | 'screen' }[]>([
-    { id: Date.now().toString(), title: '', type: 'video', videoSource: 'upload' }
-  ]);
+  const [nodes, setNodes] = useState<Node[]>([]);
   
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    async function fetchTrailData() {
+      try {
+        const supabase = createClient();
+        
+        // 1. Fetch Trail
+        const { data: trail, error: trailError } = await supabase
+          .from('learning_trails')
+          .select('*')
+          .eq('id', id)
+          .single();
+          
+        if (trailError) throw trailError;
+        
+        setTitle(trail.title);
+        setSubject(trail.subject);
+        setBimestre(trail.bimestre.toString());
+        setThumbnailUrl(trail.thumbnail_url || null);
+        
+        // 2. Fetch Nodes
+        const { data: nodesData, error: nodesError } = await supabase
+          .from('trail_nodes')
+          .select('*')
+          .eq('trail_id', id)
+          .order('order_index', { ascending: true });
+          
+        if (nodesError) throw nodesError;
+        
+        setNodes(nodesData.map(n => ({
+          id: n.id,
+          title: n.title,
+          type: n.type,
+          content_url: n.content_url
+        })));
+
+      } catch (err: any) {
+        console.error(err);
+        setError('Erro ao carregar dados da trilha.');
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    if (id) fetchTrailData();
+  }, [id]);
+
   const addNode = () => {
-    setNodes([...nodes, { id: Date.now().toString(), title: '', type: 'video', videoSource: 'upload' }]);
+    setNodes([...nodes, { id: Date.now().toString(), title: '', type: 'video' }]);
   };
 
-  const removeNode = (id: string) => {
-    setNodes(nodes.filter(n => n.id !== id));
+  const removeNode = (nodeId: string) => {
+    setNodes(nodes.filter(n => n.id !== nodeId));
   };
 
-  const updateNode = (id: string, field: string, value: any) => {
-    setNodes(nodes.map(n => n.id === id ? { ...n, [field]: value } : n));
+  const updateNode = (nodeId: string, field: string, value: any) => {
+    setNodes(nodes.map(n => n.id === nodeId ? { ...n, [field]: value } : n));
   };
 
   const moveNode = (index: number, direction: 'up' | 'down') => {
@@ -72,42 +127,48 @@ export default function CriarTrilhaPage() {
       const supabase = createClient();
       
       // Upload Thumbnail (Optional)
-      let thumbnailUrl = null;
+      let currentThumbnailUrl = thumbnailUrl;
       if (thumbnail) {
          const fileExt = thumbnail.name.split('.').pop();
          const fileName = `${Date.now()}_${Math.random()}.${fileExt}`;
          const { error: uploadError } = await supabase.storage.from('course-contents').upload(`thumbnails/${fileName}`, thumbnail);
          if (!uploadError) {
             const { data } = supabase.storage.from('course-contents').getPublicUrl(`thumbnails/${fileName}`);
-            thumbnailUrl = data.publicUrl;
+            currentThumbnailUrl = data.publicUrl;
          }
       }
       
-      // 1. Insert Trail
+      // 1. Update Trail
       const trailPayload: any = {
           title,
           subject,
           bimestre: parseInt(bimestre),
           published,
-          author_id: profile?.id
       };
       
-      if (thumbnailUrl) trailPayload.thumbnail_url = thumbnailUrl;
+      if (currentThumbnailUrl) trailPayload.thumbnail_url = currentThumbnailUrl;
 
-      const { data: trailData, error: trailError } = await supabase
+      const { error: trailError } = await supabase
         .from('learning_trails')
-        .insert(trailPayload)
-        .select()
-        .single();
+        .update(trailPayload)
+        .eq('id', id);
         
       if (trailError) throw trailError;
       
-      // 2. Upload Node Files and Insert Nodes
+      // 2. Sync Nodes (Delete all and Re-insert is the safest way to maintain order/integrity)
+      console.log('Sincronizando nós para trilha:', id);
+      const { error: deleteNodesError } = await supabase.from('trail_nodes').delete().eq('trail_id', id);
+      
+      if (deleteNodesError) {
+        console.error('Erro ao limpar nós antigos:', deleteNodesError);
+        throw new Error('Não foi possível limpar os tópicos antigos. Verifique as permissões de DELETE no Supabase.');
+      }
+
       const nodesToInsert = await Promise.all(nodes.map(async (node, index) => {
-        let contentUrl = null;
+        let contentUrl = node.content_url || null;
         
         if (node.file) {
-           const fileExt = (node.file as File).name?.split('.').pop() || 'webm';
+           const fileExt = node.file.name.split('.').pop();
            const fileName = `${Date.now()}_${Math.random()}.${fileExt}`;
            const { error: uploadError } = await supabase.storage.from('course-contents').upload(`nodes/${fileName}`, node.file);
            if (!uploadError) {
@@ -117,7 +178,7 @@ export default function CriarTrilhaPage() {
         }
 
         return {
-          trail_id: trailData.id,
+          trail_id: id,
           title: node.title,
           type: node.type,
           order_index: index,
@@ -132,16 +193,26 @@ export default function CriarTrilhaPage() {
         
       if (nodesError) throw nodesError;
       
+      toast.success('Trilha atualizada com sucesso!');
       router.push('/trilhas');
       router.refresh();
       
     } catch (err: any) {
-      console.error(err);
-      setError('Ocorreu um erro ao salvar a trilha. ' + (err.message || ''));
+      console.error('Erro detalhado no salvamento:', err);
+      setError('Ocorreu um erro ao salvar a trilha. Mensagem: ' + (err.message || 'Verifique o Console do Desenvolvedor'));
     } finally {
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <Loader2 className="w-10 h-10 animate-spin text-[var(--primary)]" />
+        <p className="mt-4 text-muted-foreground">Carregando dados da trilha...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
@@ -153,9 +224,9 @@ export default function CriarTrilhaPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-heading font-bold tracking-tight">Criar Nova Trilha</h1>
+            <h1 className="text-3xl font-heading font-bold tracking-tight">Editar Trilha</h1>
             <p className="text-muted-foreground mt-1">
-              Estruture o mapa de aprendizado adicionando tópicos sequenciais.
+              Modifique a estrutura ou os metadados desta trilha de aprendizagem.
             </p>
           </div>
         </div>
@@ -169,7 +240,7 @@ export default function CriarTrilhaPage() {
             className="bg-[var(--primary)] text-white hover:bg-[#A93226]"
           >
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Publicar Trilha
+            Salvar e Publicar
           </Button>
         </div>
       </div>
@@ -198,13 +269,20 @@ export default function CriarTrilhaPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="thumbnail">Thumbnail (Capa da Trilha)</Label>
-              <Input 
-                id="thumbnail" 
-                type="file" 
-                accept="image/*"
-                onChange={(e) => setThumbnail(e.target.files?.[0] || null)}
-                className="cursor-pointer"
-              />
+              <div className="flex items-center gap-2">
+                {thumbnailUrl && !thumbnail && (
+                  <div className="w-10 h-10 rounded bg-zinc-200 overflow-hidden border">
+                    <img src={thumbnailUrl} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <Input 
+                  id="thumbnail" 
+                  type="file" 
+                  accept="image/*"
+                  onChange={(e) => setThumbnail(e.target.files?.[0] || null)}
+                  className="cursor-pointer flex-1"
+                />
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -304,78 +382,17 @@ export default function CriarTrilhaPage() {
                   </div>
                 </div>
                 
-                {/* Content area: video nodes get tab selector */}
-                {node.type === 'video' ? (
-                  <div className="space-y-3">
-                    {/* Tab selector */}
-                    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg gap-1 w-fit">
-                      <button
-                        type="button"
-                        onClick={() => updateNode(node.id, 'videoSource', 'upload')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                          node.videoSource !== 'screen'
-                            ? 'bg-white dark:bg-zinc-700 shadow-sm text-[var(--primary)]'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        <Upload className="w-3.5 h-3.5" /> Upload de Arquivo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { updateNode(node.id, 'videoSource', 'screen'); updateNode(node.id, 'file', null); }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                          node.videoSource === 'screen'
-                            ? 'bg-white dark:bg-zinc-700 shadow-sm text-[var(--primary)]'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        <Monitor className="w-3.5 h-3.5" /> Gravar Tela
-                      </button>
-                    </div>
-
-                    {node.videoSource === 'screen' ? (
-                      <ScreenRecorder
-                        onVideoReady={(blob) => {
-                          // Wrap blob as a File so the existing upload logic works
-                          const file = new File([blob], `gravacao-${Date.now()}.webm`, { type: blob.type });
-                          updateNode(node.id, 'file', file);
-                        }}
-                      />
-                    ) : (
-                      <div className="bg-zinc-100 dark:bg-zinc-800/50 p-3 rounded-lg border border-border/50">
-                        <Label htmlFor={`file-${node.id}`} className="text-xs font-semibold text-[var(--accent)]">
-                          Anexo (PDF, Vídeo ou Imagem)
-                        </Label>
-                        <Input 
-                          id={`file-${node.id}`} 
-                          type="file" 
-                          className="bg-white dark:bg-zinc-950 cursor-pointer text-xs mt-2"
-                          onChange={(e) => updateNode(node.id, 'file', e.target.files?.[0] || null)}
-                        />
-                      </div>
-                    )}
-
-                    {/* Confirmation when screen-recorded video is ready */}
-                    {node.videoSource === 'screen' && node.file && (
-                      <div className="flex items-center gap-2 p-2 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg text-sm text-emerald-700 dark:text-emerald-300">
-                        <span className="text-emerald-500">✓</span>
-                        Vídeo gravado com sucesso: <strong>{(node.file as File).name}</strong>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-2 bg-zinc-100 dark:bg-zinc-800/50 p-3 rounded-lg border border-border/50">
-                     <Label htmlFor={`file-${node.id}`} className="text-xs font-semibold text-[var(--accent)]">
-                       Anexo (PDF, Vídeo ou Imagem)
-                     </Label>
-                     <Input 
-                       id={`file-${node.id}`} 
-                       type="file" 
-                       className="bg-white dark:bg-zinc-950 cursor-pointer text-xs"
-                       onChange={(e) => updateNode(node.id, 'file', e.target.files?.[0] || null)}
-                     />
-                  </div>
-                )}
+                <div className="space-y-2 bg-zinc-100 dark:bg-zinc-800/50 p-3 rounded-lg border border-border/50">
+                   <Label htmlFor={`file-${node.id}`} className="text-xs font-semibold text-[var(--accent)]">
+                     Anexo (PDF, Vídeo ou Imagem) {node.content_url && !node.file && <span className="text-zinc-500 font-normal ml-2">(Já possui arquivo)</span>}
+                   </Label>
+                   <Input 
+                     id={`file-${node.id}`} 
+                     type="file" 
+                     className="bg-white dark:bg-zinc-950 cursor-pointer text-xs"
+                     onChange={(e) => updateNode(node.id, 'file', e.target.files?.[0] || null)}
+                   />
+                </div>
               </div>
 
               <div className="ml-2">
@@ -396,4 +413,3 @@ export default function CriarTrilhaPage() {
     </div>
   );
 }
-

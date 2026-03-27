@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,8 +23,8 @@ type Node = {
 
 export default function EditarTrilhaPage() {
   const router = useRouter();
-  const params = useParams();
-  const id = params.id as string;
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id');
   const { profile } = useAuth();
   
   // Trail state

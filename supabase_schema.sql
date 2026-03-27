@@ -1,5 +1,5 @@
 -- ========================================================
--- TECNOLEARN - SUPABASE SCHEMA START
+-- learnapp - SUPABASE SCHEMA START
 -- Crie suas tabelas rodando este código no painel SQL Editor do Supabase.
 -- ========================================================
 

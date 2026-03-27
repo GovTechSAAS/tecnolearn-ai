@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState, use, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { CheckCircle2, Lock, PlayCircle, FileText, ArrowLeft, Trophy, Star, Clock, Loader2, AlertCircle, MessageSquareText, ExternalLink } from 'lucide-react';
@@ -24,9 +23,9 @@ type Trail = {
   title: string;
 };
 
-export default function TrilhaMapPage() {
-  const searchParams = useSearchParams();
-  const id = searchParams.get('id');
+export default function TrilhaMapPage({ params }: { params: Promise<{ id: string }> }) {
+  const unwrappedParams = use(params);
+  const { id } = unwrappedParams;
 
   const [selectedNode, setSelectedNode] = useState<TrailNode | null>(null);
   const [trail, setTrail] = useState<Trail | null>(null);

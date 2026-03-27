@@ -1,6 +1,6 @@
-# Tecnolearn EAD Platform (Next.js 14)
+# learnapp EAD Platform (Next.js 14)
 
-Tecnolearn é uma plataforma de ensino a distância (EAD) moderna, desenvolvida com a stack mais recente do ecossistema React. Idealizada como um SaaS de alto desempenho, ela integra as mais avançadas bibliotecas de UI/UX, Inteligência Artificial genertiva e Reconhecimento Facial em tempo real no próprio navegador (Client-side).
+learnapp é uma plataforma de ensino a distância (EAD) moderna, desenvolvida com a stack mais recente do ecossistema React. Idealizada como um SaaS de alto desempenho, ela integra as mais avançadas bibliotecas de UI/UX, Inteligência Artificial genertiva e Reconhecimento Facial em tempo real no próprio navegador (Client-side).
 
 ## 🚀 Tecnologias e Stack
 - **Framework Core**: [Next.js 14+](https://nextjs.org/) (App Router)

@@ -7,11 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Video, Play, Square, Pause, Download, Camera, ArrowLeft, Image as ImageIcon, FileText, Loader2, Search } from 'lucide-react';
+import { Video, Play, Square, Pause, Download, Camera, ArrowLeft, Image as ImageIcon, FileText, Loader2, Monitor } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { ScreenRecorder } from '@/components/shared/ScreenRecorder';
 
 function formatDuration(seconds: number) {
   const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -28,6 +29,7 @@ export default function CriarConteudoPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [studioMode, setStudioMode] = useState<'camera' | 'screen'>('camera');
   const {
     state,
     duration,
@@ -224,21 +226,54 @@ export default function CriarConteudoPage() {
                     <Video className="w-5 h-5" /> Estúdio de Gravação
                   </CardTitle>
                 </div>
-                {state === 'recording' && (
-                  <div className="flex items-center gap-2 animate-pulse">
-                    <span className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]"></span>
-                    <span className="text-sm font-bold tracking-wider">{formatDuration(duration)}</span>
+                <div className="flex items-center gap-2">
+                  {/* Mode tabs */}
+                  <div className="flex bg-white/20 rounded-lg p-0.5 gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setStudioMode('camera')}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                        studioMode === 'camera' ? 'bg-white text-[var(--primary)]' : 'text-white/80 hover:text-white'
+                      }`}
+                    >
+                      <Camera className="w-3 h-3" /> Câmera
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStudioMode('screen')}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                        studioMode === 'screen' ? 'bg-white text-[var(--primary)]' : 'text-white/80 hover:text-white'
+                      }`}
+                    >
+                      <Monitor className="w-3 h-3" /> Tela
+                    </button>
                   </div>
-                )}
-                {state === 'paused' && (
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
-                    <span className="text-sm font-bold tracking-wider">{formatDuration(duration)}</span>
-                  </div>
-                )}
+                  {state === 'recording' && studioMode === 'camera' && (
+                    <div className="flex items-center gap-2 animate-pulse">
+                      <span className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]"></span>
+                      <span className="text-sm font-bold tracking-wider">{formatDuration(duration)}</span>
+                    </div>
+                  )}
+                  {state === 'paused' && studioMode === 'camera' && (
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
+                      <span className="text-sm font-bold tracking-wider">{formatDuration(duration)}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
+              {studioMode === 'screen' ? (
+                <div className="p-4">
+                  <ScreenRecorder
+                    onVideoReady={(blob) => {
+                      const file = new File([blob], `tela-${Date.now()}.webm`, { type: blob.type });
+                      setExternalVideo(file);
+                    }}
+                  />
+                </div>
+              ) : (
               <div className="relative aspect-video bg-zinc-900 flex items-center justify-center overflow-hidden">
                 {state === 'idle' && (
                   <div className="text-center p-6 text-zinc-400">
@@ -289,8 +324,10 @@ export default function CriarConteudoPage() {
                    />
                 )}
               </div>
+              )} {/* end camera mode */}
             </CardContent>
             
+            {studioMode === 'camera' && (
             <CardFooter className="p-4 bg-zinc-50 dark:bg-zinc-900 flex items-center justify-center gap-4">
                 {state === 'ready' && (
                   <div className="flex gap-4">
@@ -346,6 +383,7 @@ export default function CriarConteudoPage() {
                 </>
               )}
             </CardFooter>
+            )}
           </Card>
         </div>
 

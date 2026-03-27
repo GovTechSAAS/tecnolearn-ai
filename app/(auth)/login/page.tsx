@@ -48,19 +48,19 @@ export default function LoginPage() {
         </div>
         <CardTitle className="text-3xl font-bold tracking-tight">Bem-vindo(a) de volta</CardTitle>
         <CardDescription className="text-base">
-          Acesse a plataforma Tecnolearn
+          Acesse a plataforma learnapp
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent>
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">E-mail</Label>
-            <Input 
-              id="email" 
-              type="email" 
-              placeholder="seu@email.com" 
-              required 
+            <Input
+              id="email"
+              type="email"
+              placeholder="seu@email.com"
+              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="h-11"
@@ -73,10 +73,10 @@ export default function LoginPage() {
                 Esqueceu a senha?
               </Link>
             </div>
-            <Input 
-              id="password" 
-              type="password" 
-              required 
+            <Input
+              id="password"
+              type="password"
+              required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="h-11"
@@ -89,8 +89,8 @@ export default function LoginPage() {
             </div>
           )}
 
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             className="w-full h-11 text-base font-medium shadow-md transition-transform hover:scale-[1.02] bg-[var(--primary)] text-white hover:bg-[#A93226]"
             disabled={loading}
           >
@@ -98,7 +98,7 @@ export default function LoginPage() {
           </Button>
         </form>
       </CardContent>
-      
+
       <CardFooter className="flex flex-col space-y-4 pt-4 border-t border-border/40">
         <div className="text-sm text-center text-muted-foreground">
           Ainda não tem uma conta?{' '}
