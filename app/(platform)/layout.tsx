@@ -7,7 +7,7 @@ import { LumiChat } from '@/components/shared/LumiChat';
 
 export default function PlatformLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
+  // teste commit 
   return (
     <div className="flex h-screen bg-[#F4F4F4] dark:bg-zinc-950 overflow-hidden">
       <Sidebar mobileOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
