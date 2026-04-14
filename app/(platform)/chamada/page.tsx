@@ -355,19 +355,19 @@ export default function ChamadaPage() {
         </div>
 
         {activeTab === 'current' && (
-          <div className="grid lg:grid-cols-[1fr,400px] gap-8 animate-in fade-in duration-300">
+          <div className="grid lg:grid-cols-[1fr,400px] gap-6 lg:gap-8 animate-in fade-in duration-300">
 
             {/* Painel da Câmera (Esquerda) */}
             <div className="space-y-6">
               <Card className="border-0 shadow-xl bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between bg-zinc-50 dark:bg-zinc-900 border-b border-border/40">
-                  <div className="space-y-1">
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-50 dark:bg-zinc-900 border-b border-border/40">
+                  <div className="space-y-1 min-w-0">
                     <CardTitle>Reconhecimento Biométrico</CardTitle>
-                    <CardDescription>A câmera rastreará e computará os alunos matriculados nesta turma.</CardDescription>
+                    <CardDescription>A câmera rastreará os alunos matriculados nesta turma.</CardDescription>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
                     <Select value={selectedClassId} onValueChange={(val) => setSelectedClassId(val || '')}>
-                      <SelectTrigger className="w-[200px] bg-white dark:bg-zinc-950">
+                      <SelectTrigger className="w-full sm:w-[180px] bg-white dark:bg-zinc-950">
                         <SelectValue placeholder="Selecione a Turma" />
                       </SelectTrigger>
                       <SelectContent>
@@ -378,7 +378,7 @@ export default function ChamadaPage() {
                     <Button
                       onClick={() => setIsCalling(!isCalling)}
                       variant={isCalling ? 'destructive' : 'default'}
-                      className={!isCalling ? 'bg-[var(--primary)] text-white hover:bg-[#A93226]' : ''}
+                      className={`w-full sm:w-auto ${!isCalling ? 'bg-[var(--primary)] text-white hover:bg-[#A93226]' : ''}`}
                       disabled={!selectedClassId || loading}
                     >
                       {isCalling ? 'Encerrar Câmera' : 'Iniciar Escaneamento'}

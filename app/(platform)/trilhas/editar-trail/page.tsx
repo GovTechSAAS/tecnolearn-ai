@@ -230,19 +230,7 @@ export default function EditarTrilhaPage() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => handleSave(false)} disabled={saving}>
-            Salvar Rascunho
-          </Button>
-          <Button 
-            onClick={() => handleSave(true)} 
-            disabled={saving}
-            className="bg-[var(--primary)] text-white hover:bg-[#A93226]"
-          >
-            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Salvar e Publicar
-          </Button>
-        </div>
+
       </div>
 
       {error && (
@@ -410,6 +398,19 @@ export default function EditarTrilhaPage() {
           ))}
         </CardContent>
       </Card>
+      <div className="flex gap-2">
+          <Button variant="outline" onClick={() => handleSave(false)} disabled={saving}>
+            Salvar Rascunho
+          </Button>
+          <Button 
+            onClick={() => handleSave(true)} 
+            disabled={saving}
+            className="bg-[var(--primary)] text-white hover:bg-[#A93226]"
+          >
+            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            Salvar e Publicar
+          </Button>
+        </div>
     </div>
   );
 }

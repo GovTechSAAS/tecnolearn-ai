@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { CheckCircle2, Lock, PlayCircle, FileText, ArrowLeft, Trophy, Star, Clock, Loader2, AlertCircle, MessageSquareText, ExternalLink } from 'lucide-react';
@@ -14,19 +14,24 @@ type TrailNode = {
   id: string;
   title: string;
   type: string;
+  description?: string;
   duration?: string;
   status?: string;
   content_url?: string;
+  thumbnail_url?: string;
 };
 
 type Trail = {
   id: string;
   title: string;
+  thumbnail_url?: string;
 };
 
 export default function TrilhaMapPage() {
+  const params = useParams<{ id?: string | string[] }>();
   const searchParams = useSearchParams();
-  const id = searchParams.get('id');
+  const routeId = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  const id = routeId ?? searchParams.get('id');
 
   const [selectedNode, setSelectedNode] = useState<TrailNode | null>(null);
   const [trail, setTrail] = useState<Trail | null>(null);
@@ -37,15 +42,28 @@ export default function TrilhaMapPage() {
   const { profile, loading: authLoading } = useAuth();
 
   const fetchData = useCallback(async () => {
-    if (authLoading || !profile) return;
+    if (authLoading) return;
+    if (!profile) {
+      setError('Voce precisa estar autenticado para ver esta trilha.');
+      setLoading(false);
+      return;
+    }
+    if (!id) {
+      setError('ID da trilha inválido.');
+      setLoading(false);
+      return;
+    }
     
+    setLoading(true);
+    setError('');
+
     try {
       const supabase = createClient();
       
       // 1. Get Trail Details
       const { data: trailData, error: trailError } = await supabase
         .from('learning_trails')
-        .select('id, title')
+        .select('id, title, thumbnail_url')
         .eq('id', id)
         .single();
         
@@ -91,8 +109,7 @@ export default function TrilhaMapPage() {
       });
       
       setNodes(mappedNodes);
-    } catch (err: any) {
-       console.error(err);
+    } catch {
        setError('Erro ao carregar os dados da trilha.');
     } finally {
        setLoading(false);
@@ -162,6 +179,19 @@ export default function TrilhaMapPage() {
     }
   };
 
+  const selectedContentUrl = selectedNode?.content_url ?? '';
+  const isVideoContent = Boolean(selectedContentUrl) && /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(selectedContentUrl);
+  const isPdfContent = Boolean(selectedContentUrl) && /\.pdf(\?.*)?$/i.test(selectedContentUrl);
+  const isImageContent = Boolean(selectedContentUrl) && /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(selectedContentUrl);
+  const hasDocumentContent = Boolean(selectedContentUrl) && !isVideoContent;
+  const getNodeThumbnailUrl = (node: TrailNode) => {
+    if (node.thumbnail_url) return node.thumbnail_url;
+    if (node.content_url && /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(node.content_url)) {
+      return node.content_url;
+    }
+    return null;
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground">
@@ -191,7 +221,12 @@ export default function TrilhaMapPage() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
         </Link>
-        <div>
+        {trail.thumbnail_url ? (
+          <div className="w-16 h-16 rounded-xl overflow-hidden border border-border/60 shadow-sm">
+            <img src={trail.thumbnail_url} alt={`Capa da trilha ${trail.title}`} className="w-full h-full object-cover" />
+          </div>
+        ) : null}
+        <div className="min-w-0">
           <h1 className="text-3xl font-heading font-bold tracking-tight">{trail.title}</h1>
           <p className="text-[var(--accent)] font-medium mt-1">
             Mapeamento Interativo
@@ -211,6 +246,7 @@ export default function TrilhaMapPage() {
           {nodes.map((node, index) => {
             const isLeft = index % 2 === 0;
             const isLocked = node.status === 'locked';
+            const nodeThumbnailUrl = getNodeThumbnailUrl(node);
 
             return (
               <div key={node.id} className={`flex items-center justify-between gap-8 ${isLeft ? 'flex-row' : 'flex-row-reverse'}`}>
@@ -223,6 +259,15 @@ export default function TrilhaMapPage() {
                         : 'bg-white dark:bg-zinc-950 border-transparent hover:border-[var(--accent)] shadow-xl hover:shadow-[var(--accent)]/20 hover:-translate-y-1'
                       }`}
                   >
+                    {nodeThumbnailUrl ? (
+                      <div className="mb-3 rounded-lg overflow-hidden border border-border/60 bg-zinc-100 dark:bg-zinc-900">
+                        <img
+                          src={nodeThumbnailUrl}
+                          alt={`Thumbnail do tópico ${node.title}`}
+                          className="w-full h-28 object-cover"
+                        />
+                      </div>
+                    ) : null}
                     <h3 className={`font-bold text-lg ${isLocked ? 'text-muted-foreground' : 'text-foreground'}`}>
                       {node.title}
                     </h3>
@@ -263,44 +308,75 @@ export default function TrilhaMapPage() {
               {selectedNode?.title}
             </DialogTitle>
             <DialogDescription>
-              {selectedNode?.type === 'video' ? 'Vídeo Aula' : 'Material de Apoio'} • Duração: {selectedNode?.duration || '00 min'}
+              {isVideoContent ? 'Vídeo Aula' : 'Material de Apoio'} • Duração: {selectedNode?.duration || '00 min'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid md:grid-cols-[1fr,300px] gap-6 mt-4">
             {/* Visualização de Conteúdo */}
             <div className="space-y-4">
-               {selectedNode?.type === 'video' && selectedNode?.content_url ? (
+               <div className="rounded-xl border border-border/60 bg-zinc-50 dark:bg-zinc-900/50 p-4">
+                 <p className="text-xs font-semibold text-[var(--primary)] mb-1">Descricao do professor</p>
+                 {selectedNode?.description?.trim() ? (
+                   <div
+                     className="text-sm text-muted-foreground leading-relaxed [&_p]:mb-2 [&_p:last-child]:mb-0"
+                     dangerouslySetInnerHTML={{ __html: selectedNode.description }}
+                   />
+                 ) : (
+                   <p className="text-sm text-muted-foreground leading-relaxed">
+                     Sem descricao cadastrada para este topico.
+                   </p>
+                 )}
+               </div>
+
+               {isVideoContent ? (
                   <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-zinc-800">
                      <video 
-                       src={selectedNode.content_url} 
+                       src={selectedContentUrl}
                        controls 
                        className="w-full h-full"
                        autoPlay
                      />
                   </div>
+               ) : hasDocumentContent ? (
+                  <div className="space-y-3">
+                    {isImageContent ? (
+                      <div className="rounded-xl overflow-hidden border border-border/60 bg-zinc-100 dark:bg-zinc-900">
+                        <img src={selectedContentUrl} alt={selectedNode?.title || 'Documento do tópico'} className="w-full max-h-[420px] object-contain" />
+                      </div>
+                    ) : isPdfContent ? (
+                      <div className="rounded-xl overflow-hidden border border-border/60 bg-zinc-100 dark:bg-zinc-900 h-[420px]">
+                        <iframe src={selectedContentUrl} title={selectedNode?.title || 'Documento PDF'} className="w-full h-full" />
+                      </div>
+                    ) : (
+                      <div className="aspect-video flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-xl border-2 border-dashed border-zinc-300 dark:border-zinc-800 p-8 text-center">
+                        <div className="w-20 h-20 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center mb-4">
+                          <FileText size={40} />
+                        </div>
+                        <p className="text-muted-foreground font-medium">Documento anexado neste tópico.</p>
+                      </div>
+                    )}
+                    <Button
+                      onClick={() => window.open(selectedContentUrl, '_blank')}
+                      className="bg-[var(--accent)] hover:bg-[#D35400] text-white"
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Abrir Documento
+                    </Button>
+                  </div>
                ) : (
                   <div className="aspect-video flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-xl border-2 border-dashed border-zinc-300 dark:border-zinc-800 p-8 text-center">
                     <div className="w-20 h-20 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center mb-4">
-                      {selectedNode?.type === 'video' ? <PlayCircle size={40} /> : <FileText size={40} />}
+                      <FileText size={40} />
                     </div>
                     <p className="text-muted-foreground font-medium">
-                      Este módulo é um material de leitura ou atividade.
+                      Nenhum conteúdo anexado para este tópico.
                     </p>
-                    {selectedNode?.content_url && (
-                       <Button 
-                         onClick={() => window.open(selectedNode?.content_url, '_blank')}
-                         className="mt-4 bg-[var(--accent)] hover:bg-[#D35400] text-white"
-                       >
-                         <ExternalLink className="w-4 h-4 mr-2" />
-                         Abrir Material Original
-                       </Button>
-                    )}
                   </div>
                )}
 
                {/* Seção de Transcrição (Futura) */}
-               {selectedNode?.type === 'video' && (
+               {isVideoContent && (
                  <div className="bg-zinc-50 dark:bg-zinc-900/50 p-4 rounded-xl border border-border/60">
                     <div className="flex items-center gap-2 mb-3 text-sm font-semibold text-[var(--primary)]">
                        <MessageSquareText size={18} />
@@ -337,7 +413,9 @@ export default function TrilhaMapPage() {
                      Dica do LUMI
                   </h4>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Assista ao vídeo e anote as dúvidas para perguntar ao chat LUMI após a aula!
+                    {isVideoContent
+                      ? 'Assista ao video e anote as duvidas para perguntar ao chat LUMI apos a aula!'
+                      : 'Leia o material do topico e anote as duvidas para perguntar ao chat LUMI.'}
                   </p>
                </div>
             </div>

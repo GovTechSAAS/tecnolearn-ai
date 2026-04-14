@@ -1,0 +1,265 @@
+<style>
+/* ==============================================
+   FORMULÁRIO RD STATION - DARK THEME TECNOCOMP
+   ============================================== */
+
+/* --- Reset visual de wrappers --- */
+#fale-conosco-24157b6e05ad624bbe25,
+#fale-conosco-24157b6e05ad624bbe25 div,
+#fale-conosco-24157b6e05ad624bbe25 section,
+#fale-conosco-24157b6e05ad624bbe25 form {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* --- Container principal --- */
+#fale-conosco-24157b6e05ad624bbe25 form {
+    background-color: #D7D7D7 !important;
+    border-radius: 12px !important;
+    padding: 30px !important;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.35);
+    color: #d5d5d5 !important;
+}
+
+/* --- Tipografia --- */
+#fale-conosco-24157b6e05ad624bbe25 * {
+    font-family: "Inter", sans-serif !important;
+    box-sizing: border-box;
+}
+
+#rd-static_text-mgvaql5e span {
+    color: #333 !important;
+}
+
+/* --- Checkbox field width --- */
+#rd-checkbox_field-mgvaql5d {
+    width: fit-content !important;
+}
+
+/* --- Checkbox field with classes - more specific --- */
+div.bricks-form__field.bricks-form__privacy#rd-checkbox_field-mgvaql5d {
+    width: fit-content !important;
+    max-width: fit-content !important;
+}
+
+/* --- Privacy checkbox container --- */
+.bricks-form__privacy {
+    width: fit-content !important;
+}
+
+/* --- Force checkbox field width with higher specificity --- */
+div[id="rd-checkbox_field-mgvaql5d"] {
+    width: fit-content !important;
+    max-width: fit-content !important;
+    display: inline-block !important;
+}
+
+/* --- Target any nested elements that might affect width --- */
+#rd-checkbox_field-mgvaql5d * {
+    width: auto !important;
+    max-width: none !important;
+}
+
+/* --- Labels --- */
+#fale-conosco-24157b6e05ad624bbe25 label {
+    color: #2f2f2f !important;
+    font-weight: 500 !important;
+    display: block;
+    margin-bottom: 4px !important;
+}
+
+/* --- Inputs gerais --- */
+#fale-conosco-24157b6e05ad624bbe25 input,
+#fale-conosco-24157b6e05ad624bbe25 select,
+#fale-conosco-24157b6e05ad624bbe25 textarea {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+    border: 1px solid #2b2b2b !important;
+    border-radius: 6px !important;
+    padding: 12px 14px !important;
+    width: 100% !important;
+    margin: 8px 0 !important;
+    transition: all 0.2s ease;
+}
+
+#fale-conosco-24157b6e05ad624bbe25 input::placeholder,
+#fale-conosco-24157b6e05ad624bbe25 textarea::placeholder {
+    color: #bfbfbf !important;
+}
+
+#fale-conosco-24157b6e05ad624bbe25 input:focus,
+#fale-conosco-24157b6e05ad624bbe25 select:focus,
+#fale-conosco-24157b6e05ad624bbe25 textarea:focus {
+    border-color: #ff6f00 !important;
+    box-shadow: 0 0 8px #ff6f0044 !important;
+    outline: none !important;
+}
+
+/* --- Campo de telefone (corrigido e alinhado) --- */
+#fale-conosco-24157b6e05ad624bbe25 .iti {
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    background: #1a1a1a !important;
+    border: 1px solid #2b2b2b !important;
+    border-radius: 6px !important;
+    overflow: hidden !important;
+    margin: 8px 0 !important;
+}
+
+#fale-conosco-24157b6e05ad624bbe25 .iti__flag-container {
+    flex-shrink: 0;
+    background: #1a1a1a !important;
+    border-right: 1px solid #2b2b2b !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 8px !important;
+}
+
+#fale-conosco-24157b6e05ad624bbe25 .iti__selected-flag {
+    background: transparent !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+#fale-conosco-24157b6e05ad624bbe25 .iti__country-list {
+    background: #1a1a1a !important;
+    color: #fff !important;
+    border: 1px solid #2b2b2b !important;
+}
+
+#fale-conosco-24157b6e05ad624bbe25 .iti input[type="tel"] {
+    border: none !important;
+    background: #1a1a1a !important;
+    color: #fff !important;
+    flex-grow: 1 !important;
+    height: 46px !important;
+    padding: 0 12px !important;
+}
+
+/* --- Esconde input duplicado gerado pelo plugin --- */
+#fale-conosco-24157b6e05ad624bbe25 input[type="hidden"][name*="phone"],
+#fale-conosco-24157b6e05ad624bbe25 input[name*="phone"][style*="display: none"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* --- Checkbox --- */
+#fale-conosco-24157b6e05ad624bbe25 input[type="checkbox"] {
+    accent-color: #ff6f00 !important;
+}
+
+/* --- Botão principal --- */
+#fale-conosco-24157b6e05ad624bbe25 input[type="submit"],
+#fale-conosco-24157b6e05ad624bbe25 button {
+    background: linear-gradient(90deg, #ff6f00, #ff8a00) !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 12px 20px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.25s ease !important;
+    width: 100% !important;
+    text-transform: uppercase;
+    box-shadow: 0 0 10px #ff6f0044 !important;
+}
+
+#fale-conosco-24157b6e05ad624bbe25 button:hover,
+#fale-conosco-24157b6e05ad624bbe25 input[type="submit"]:hover {
+    background: linear-gradient(90deg, #ff8800, #ffaa00) !important;
+    transform: scale(1.02);
+    box-shadow: 0 0 20px #ff6f0066 !important;
+}
+
+/* --- Textos secundários --- */
+#fale-conosco-24157b6e05ad624bbe25 p,
+#fale-conosco-24157b6e05ad624bbe25 small {
+    color: #cccccc !important;
+    font-size: 13px !important;
+    line-height: 1.4em;
+}
+
+/* --- Responsividade --- */
+@media (max-width: 480px) {
+    #fale-conosco-24157b6e05ad624bbe25 form {
+        padding: 25px !important;
+    }
+}
+
+/* --- Select2 choice background override --- */
+#rd-form-ldpiv10c .select2-container .select2-choice {
+    background-color: #1a1a1a !important;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+/* --- Phone input group alignment --- */
+#rd-form-ldpiv10c .with-select-flags>.phone-input-group {
+    align-items: center;
+}
+
+/* --- Static text color override --- */
+</style><div role="main" id="fale-conosco-24157b6e05ad624bbe25"></div><script src="https://d335luupugsy2.cloudfront.net/js/rdstation-forms/stable/rdstation-forms.min.js"></script><script>new RDStationForms('fale-conosco-24157b6e05ad624bbe25', 'UA-6494545-1').createForm();
+
+/* --- Correção do campo de telefone duplicado --- */
+const fixPhoneField=()=> {
+    const containers=document.querySelectorAll("#fale-conosco-24157b6e05ad624bbe25 .iti");
+
+    containers.forEach((container)=> {
+            const inputs=container.querySelectorAll("input[type='tel']");
+
+            if (inputs.length > 1) {
+                for (let i=1; i < inputs.length; i++) {
+                    inputs[i].style.display="none";
+                    inputs[i].removeAttribute("required");
+                }
+            }
+        });
+}
+
+;
+
+/* --- Forçar width fit-content no checkbox --- */
+const fixCheckboxWidth=()=> {
+    const checkboxField=document.getElementById('rd-checkbox_field-mgvaql5d');
+
+    if (checkboxField) {
+        checkboxField.style.setProperty('width', 'fit-content', 'important');
+        checkboxField.style.setProperty('max-width', 'fit-content', 'important');
+        checkboxField.style.setProperty('display', 'inline-block', 'important');
+    }
+}
+
+;
+
+const observer=new MutationObserver(()=> {
+        if (document.querySelector("#fale-conosco-24157b6e05ad624bbe25 .iti")) {
+            fixPhoneField();
+        }
+
+        if (document.getElementById('rd-checkbox_field-mgvaql5d')) {
+            fixCheckboxWidth();
+        }
+
+        // Verifica se ambos os elementos foram processados
+        if (document.querySelector("#fale-conosco-24157b6e05ad624bbe25 .iti") && document.getElementById('rd-checkbox_field-mgvaql5d')) {
+            observer.disconnect();
+        }
+    });
+
+observer.observe(document.body, {
+    childList: true, subtree: true
+});
+</script>

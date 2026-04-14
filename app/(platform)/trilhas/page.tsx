@@ -16,6 +16,7 @@ type Trail = {
   subject: string;
   bimestre: number;
   published: boolean;
+  thumbnail_url?: string;
   progress?: number;
 };
 
@@ -29,7 +30,7 @@ export default function TrilhasPage() {
   useEffect(() => {
     async function fetchTrails() {
       if (authLoading) return;
-      
+
       setLoading(true);
       try {
         const supabase = createClient();
@@ -55,19 +56,22 @@ export default function TrilhasPage() {
           .select('id, trail_id');
 
         // 3. Buscar o progresso do aluno
-        const { data: progressData } = await supabase
-          .from('student_progress')
-          .select('node_id, status')
-          .eq('student_id', profile.id)
-          .eq('status', 'completed');
+        let completedNodeIds = new Set<string>();
+        if (profile?.id) {
+          const { data: progressData } = await supabase
+            .from('student_progress')
+            .select('node_id, status')
+            .eq('student_id', profile.id)
+            .eq('status', 'completed');
 
-        const completedNodeIds = new Set((progressData || []).map(p => p.node_id));
+          completedNodeIds = new Set((progressData || []).map(p => p.node_id));
+        }
 
         const mappedTrails = filteredTrails.map(t => {
           const trailNodes = (nodesData || []).filter(n => n.trail_id === t.id);
           const totalNodes = trailNodes.length;
           const completedNodes = trailNodes.filter(n => completedNodeIds.has(n.id)).length;
-          
+
           const progress = totalNodes > 0 ? Math.round((completedNodes / totalNodes) * 100) : 0;
 
           return {
@@ -155,7 +159,18 @@ export default function TrilhasPage() {
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {trails.map((trail) => (
             <Card key={trail.id} className="group hover:shadow-xl transition-all duration-300 border-border/50 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-md overflow-hidden flex flex-col">
-              <div className="h-2 w-full bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] opacity-80 group-hover:opacity-100 transition-opacity" />
+              {trail.thumbnail_url ? (
+                <div className="relative h-36 w-full overflow-hidden border-b border-border/50">
+                  <img
+                    src={trail.thumbnail_url}
+                    alt={`Capa da trilha ${trail.title}`}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
+                </div>
+              ) : (
+                <div className="h-2 w-full bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] opacity-80 group-hover:opacity-100 transition-opacity" />
+              )}
 
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start mb-2">

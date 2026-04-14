@@ -174,7 +174,7 @@ export function ScreenRecorder({ onVideoReady }: ScreenRecorderProps) {
 
             <Button onClick={toggleMic} variant="outline" className={micActive ? 'border-blue-500 text-blue-600 dark:text-blue-400' : ''}>
               {micActive ? <MicOff className="w-4 h-4 mr-2" /> : <Mic className="w-4 h-4 mr-2" />}
-              {micActive ? 'Desligar Mic' : 'Microfone'}
+              {micActive ? 'Desligar Mic' : 'Habilitar microfone'}
             </Button>
 
             <Button onClick={handleReset} variant="ghost" className="text-zinc-500 ml-auto">

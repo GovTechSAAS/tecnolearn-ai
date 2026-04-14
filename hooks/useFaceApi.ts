@@ -5,12 +5,41 @@ import * as faceapiHelpers from '@/lib/faceapi';
 
 export function useFaceApi() {
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [modelsLoading, setModelsLoading] = useState(true);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+
+  const loadAllModels = useCallback(async () => {
+    setModelsLoading(true);
+    setModelsError(null);
+    try {
+      await faceapiHelpers.loadModels();
+      setModelsLoaded(true);
+    } catch (err: any) {
+      setModelsLoaded(false);
+      setModelsError(err?.message || 'Falha ao carregar modelos de reconhecimento facial.');
+      console.error("Face API models failed to load", err);
+    } finally {
+      setModelsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
-    faceapiHelpers.loadModels().then(() => {
-      if(mounted) setModelsLoaded(true);
-    }).catch(err => console.error("Face API models failed to load", err));
+    (async () => {
+      try {
+        await faceapiHelpers.loadModels();
+        if (!mounted) return;
+        setModelsLoaded(true);
+        setModelsError(null);
+      } catch (err: any) {
+        if (!mounted) return;
+        setModelsLoaded(false);
+        setModelsError(err?.message || 'Falha ao carregar modelos de reconhecimento facial.');
+        console.error("Face API models failed to load", err);
+      } finally {
+        if (mounted) setModelsLoading(false);
+      }
+    })();
     return () => { mounted = false; };
   }, []);
 
@@ -22,5 +51,5 @@ export function useFaceApi() {
     return faceapiHelpers.compareFaces(d1, d2);
   }, []);
 
-  return { modelsLoaded, getDescriptor, compareFaces };
+  return { modelsLoaded, modelsLoading, modelsError, reloadModels: loadAllModels, getDescriptor, compareFaces };
 }

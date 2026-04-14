@@ -1,17 +1,20 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Plus, MoveUp, MoveDown, Trash2, Save, Loader2, Upload, Monitor } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ArrowLeft, Plus, MoveUp, MoveDown, Trash2, Save, Loader2, Monitor, Video, Camera, Pause, Play, Square, Download, Image as ImageIcon, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { ScreenRecorder } from '@/components/shared/ScreenRecorder';
+import { useMediaRecorder } from '@/hooks/useMediaRecorder';
+import { RichTextEditor } from '@/components/shared/RichTextEditor';
 
 export default function CriarTrilhaPage() {
   const router = useRouter();
@@ -25,15 +28,41 @@ export default function CriarTrilhaPage() {
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   
   // Nodes state
-  const [nodes, setNodes] = useState<{ id: string, title: string, type: string, file?: File | null, videoSource?: 'upload' | 'screen' }[]>([
+  const [nodes, setNodes] = useState<{ id: string, title: string, type: string, description?: string, file?: File | null, thumbnailFile?: File | null, pdfFile?: File | null, videoSource?: 'upload' | 'screen' }[]>([
     { id: Date.now().toString(), title: '', type: 'video', videoSource: 'upload' }
   ]);
+  const [contentModalNodeId, setContentModalNodeId] = useState<string | null>(null);
+  const [studioMode, setStudioMode] = useState<'camera' | 'screen'>('camera');
+  const lastActiveNodeIdRef = useRef<string | null>(null);
   
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const {
+    state,
+    duration,
+    videoBlob,
+    previewUrl,
+    stream,
+    requestCamera,
+    releaseCamera,
+    start,
+    pause,
+    resume,
+    stop,
+    reset,
+    setExternalVideo,
+    downloadVideo
+  } = useMediaRecorder();
+  const liveVideoRef = useRef<HTMLVideoElement>(null);
+
+  function formatDuration(seconds: number) {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  }
 
   const addNode = () => {
-    setNodes([...nodes, { id: Date.now().toString(), title: '', type: 'video', videoSource: 'upload' }]);
+    setNodes([...nodes, { id: Date.now().toString(), title: '', type: 'video', description: '', videoSource: 'upload' }]);
   };
 
   const removeNode = (id: string) => {
@@ -52,6 +81,38 @@ export default function CriarTrilhaPage() {
     const swapIndex = direction === 'up' ? index - 1 : index + 1;
     [newNodes[index], newNodes[swapIndex]] = [newNodes[swapIndex], newNodes[index]];
     setNodes(newNodes);
+  };
+
+  const uploadToCourseContents = async (
+    supabase: ReturnType<typeof createClient>,
+    folder: 'thumbnails' | 'nodes',
+    file: File
+  ) => {
+    const ext = file.name.split('.').pop() || (file.type.includes('video') ? 'webm' : 'bin');
+    const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    const filePath = `${folder}/${fileName}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('course-contents')
+        .upload(filePath, file, { cacheControl: '3600', upsert: false });
+
+      if (uploadError) {
+        throw new Error(uploadError.message || 'Falha no upload para o Storage.');
+      }
+
+      const { data } = supabase.storage.from('course-contents').getPublicUrl(filePath);
+      if (!data?.publicUrl) {
+        throw new Error('Nao foi possivel gerar URL publica do arquivo.');
+      }
+
+      return data.publicUrl;
+    } catch (uploadErr: any) {
+      if (uploadErr?.message?.toLowerCase?.().includes('failed to fetch')) {
+        throw new Error('Falha de rede durante o upload. Verifique conexao e tente novamente.');
+      }
+      throw uploadErr;
+    }
   };
 
   const handleSave = async (published: boolean) => {
@@ -74,13 +135,7 @@ export default function CriarTrilhaPage() {
       // Upload Thumbnail (Optional)
       let thumbnailUrl = null;
       if (thumbnail) {
-         const fileExt = thumbnail.name.split('.').pop();
-         const fileName = `${Date.now()}_${Math.random()}.${fileExt}`;
-         const { error: uploadError } = await supabase.storage.from('course-contents').upload(`thumbnails/${fileName}`, thumbnail);
-         if (!uploadError) {
-            const { data } = supabase.storage.from('course-contents').getPublicUrl(`thumbnails/${fileName}`);
-            thumbnailUrl = data.publicUrl;
-         }
+         thumbnailUrl = await uploadToCourseContents(supabase, 'thumbnails', thumbnail);
       }
       
       // 1. Insert Trail
@@ -107,13 +162,11 @@ export default function CriarTrilhaPage() {
         let contentUrl = null;
         
         if (node.file) {
-           const fileExt = (node.file as File).name?.split('.').pop() || 'webm';
-           const fileName = `${Date.now()}_${Math.random()}.${fileExt}`;
-           const { error: uploadError } = await supabase.storage.from('course-contents').upload(`nodes/${fileName}`, node.file);
-           if (!uploadError) {
-              const { data } = supabase.storage.from('course-contents').getPublicUrl(`nodes/${fileName}`);
-              contentUrl = data.publicUrl;
-           }
+           contentUrl = await uploadToCourseContents(supabase, 'nodes', node.file);
+        } else if (node.pdfFile) {
+           contentUrl = await uploadToCourseContents(supabase, 'nodes', node.pdfFile);
+        } else if (node.thumbnailFile) {
+           contentUrl = await uploadToCourseContents(supabase, 'nodes', node.thumbnailFile);
         }
 
         return {
@@ -143,6 +196,28 @@ export default function CriarTrilhaPage() {
     }
   };
 
+  const selectedNode = nodes.find((node) => node.id === contentModalNodeId) || null;
+
+  useEffect(() => {
+    if (contentModalNodeId) {
+      lastActiveNodeIdRef.current = contentModalNodeId;
+    }
+  }, [contentModalNodeId]);
+
+  useEffect(() => {
+    if (liveVideoRef.current && stream) {
+      liveVideoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  useEffect(() => {
+    if (!videoBlob) return;
+    const targetNodeId = contentModalNodeId ?? lastActiveNodeIdRef.current;
+    if (!targetNodeId) return;
+    const file = new File([videoBlob], `video-${Date.now()}.webm`, { type: videoBlob.type || 'video/webm' });
+    updateNode(targetNodeId, 'file', file);
+  }, [videoBlob, contentModalNodeId]);
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       <div className="flex items-center justify-between gap-4">
@@ -158,19 +233,6 @@ export default function CriarTrilhaPage() {
               Estruture o mapa de aprendizado adicionando tópicos sequenciais.
             </p>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => handleSave(false)} disabled={saving}>
-            Salvar Rascunho
-          </Button>
-          <Button 
-            onClick={() => handleSave(true)} 
-            disabled={saving}
-            className="bg-[var(--primary)] text-white hover:bg-[#A93226]"
-          >
-            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Publicar Trilha
-          </Button>
         </div>
       </div>
 
@@ -304,78 +366,26 @@ export default function CriarTrilhaPage() {
                   </div>
                 </div>
                 
-                {/* Content area: video nodes get tab selector */}
-                {node.type === 'video' ? (
-                  <div className="space-y-3">
-                    {/* Tab selector */}
-                    <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg gap-1 w-fit">
-                      <button
-                        type="button"
-                        onClick={() => updateNode(node.id, 'videoSource', 'upload')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                          node.videoSource !== 'screen'
-                            ? 'bg-white dark:bg-zinc-700 shadow-sm text-[var(--primary)]'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        <Upload className="w-3.5 h-3.5" /> Upload de Arquivo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { updateNode(node.id, 'videoSource', 'screen'); updateNode(node.id, 'file', null); }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                          node.videoSource === 'screen'
-                            ? 'bg-white dark:bg-zinc-700 shadow-sm text-[var(--primary)]'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        <Monitor className="w-3.5 h-3.5" /> Gravar Tela
-                      </button>
-                    </div>
-
-                    {node.videoSource === 'screen' ? (
-                      <ScreenRecorder
-                        onVideoReady={(blob) => {
-                          // Wrap blob as a File so the existing upload logic works
-                          const file = new File([blob], `gravacao-${Date.now()}.webm`, { type: blob.type });
-                          updateNode(node.id, 'file', file);
-                        }}
-                      />
-                    ) : (
-                      <div className="bg-zinc-100 dark:bg-zinc-800/50 p-3 rounded-lg border border-border/50">
-                        <Label htmlFor={`file-${node.id}`} className="text-xs font-semibold text-[var(--accent)]">
-                          Anexo (PDF, Vídeo ou Imagem)
-                        </Label>
-                        <Input 
-                          id={`file-${node.id}`} 
-                          type="file" 
-                          className="bg-white dark:bg-zinc-950 cursor-pointer text-xs mt-2"
-                          onChange={(e) => updateNode(node.id, 'file', e.target.files?.[0] || null)}
-                        />
-                      </div>
-                    )}
-
-                    {/* Confirmation when screen-recorded video is ready */}
-                    {node.videoSource === 'screen' && node.file && (
-                      <div className="flex items-center gap-2 p-2 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg text-sm text-emerald-700 dark:text-emerald-300">
-                        <span className="text-emerald-500">✓</span>
-                        Vídeo gravado com sucesso: <strong>{(node.file as File).name}</strong>
-                      </div>
-                    )}
+                <div className="space-y-3 bg-zinc-100 dark:bg-zinc-800/50 p-3 rounded-lg border border-border/50">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs text-muted-foreground">
+                      O conteúdo deste tópico deve ser configurado no modal.
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="bg-[var(--accent)] text-white hover:bg-[#D35400]"
+                      onClick={() => setContentModalNodeId(node.id)}
+                    >
+                      Inserir conteúdo do tópico
+                    </Button>
                   </div>
-                ) : (
-                  <div className="space-y-2 bg-zinc-100 dark:bg-zinc-800/50 p-3 rounded-lg border border-border/50">
-                     <Label htmlFor={`file-${node.id}`} className="text-xs font-semibold text-[var(--accent)]">
-                       Anexo (PDF, Vídeo ou Imagem)
-                     </Label>
-                     <Input 
-                       id={`file-${node.id}`} 
-                       type="file" 
-                       className="bg-white dark:bg-zinc-950 cursor-pointer text-xs"
-                       onChange={(e) => updateNode(node.id, 'file', e.target.files?.[0] || null)}
-                     />
-                  </div>
-                )}
+                  {node.file && (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                      Conteúdo selecionado: {(node.file as File).name}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="ml-2">
@@ -393,6 +403,187 @@ export default function CriarTrilhaPage() {
           ))}
         </CardContent>
       </Card>
+
+      <Dialog open={!!contentModalNodeId} onOpenChange={(open) => !open && setContentModalNodeId(null)}>
+        <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Inserir conteúdo do tópico</DialogTitle>
+            <DialogDescription>
+              Use o mesmo estúdio da página de criação de conteúdo para anexar este tópico.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedNode && (
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card className="border-0 shadow-xl bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md overflow-hidden">
+                <CardHeader className="bg-[var(--primary)] text-white px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Video className="w-5 h-5" /> Estudio de Gravacao
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <div className="flex bg-white/20 rounded-lg p-0.5 gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setStudioMode('camera')}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                            studioMode === 'camera' ? 'bg-white text-[var(--primary)]' : 'text-white/80 hover:text-white'
+                          }`}
+                        >
+                          <Camera className="w-3 h-3" /> Camera
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setStudioMode('screen')}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                            studioMode === 'screen' ? 'bg-white text-[var(--primary)]' : 'text-white/80 hover:text-white'
+                          }`}
+                        >
+                          <Monitor className="w-3 h-3" /> Tela
+                        </button>
+                      </div>
+                      {(state === 'recording' || state === 'paused') && studioMode === 'camera' && (
+                        <span className="text-sm font-bold tracking-wider">{formatDuration(duration)}</span>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {studioMode === 'screen' ? (
+                    <div className="p-4">
+                      <ScreenRecorder
+                        onVideoReady={(blob) => {
+                          const file = new File([blob], `tela-${Date.now()}.webm`, { type: blob.type });
+                          updateNode(selectedNode.id, 'file', file);
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="relative aspect-video bg-zinc-900 flex items-center justify-center overflow-hidden">
+                      {(state === 'ready' || state === 'recording' || state === 'paused' || (state === 'stopped' && !previewUrl)) && (
+                        <video ref={liveVideoRef} autoPlay muted playsInline className="w-full h-full object-cover transform -scale-x-100" />
+                      )}
+                      {state === 'stopped' && previewUrl && (
+                        <video src={previewUrl} controls className="w-full h-full object-contain bg-black" />
+                      )}
+                      {state === 'idle' && (
+                        <div className="text-center p-6 text-zinc-400">
+                          <Camera className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                          <p className="mb-4">Sua camera esta desativada</p>
+                          <Button onClick={requestCamera} className="bg-[var(--accent)] hover:bg-[#D35400] text-white">
+                            Permitir acesso a camera
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+                {studioMode === 'camera' && (
+                  <CardFooter className="p-4 bg-zinc-50 dark:bg-zinc-900 flex items-center justify-center gap-4">
+                    {state === 'ready' && (
+                      <>
+                        <Button onClick={start} className="bg-red-600 hover:bg-red-700 text-white rounded-full px-6">Iniciar gravacao</Button>
+                        <label className="flex items-center justify-center px-6 py-2 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-full cursor-pointer hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all text-sm font-medium">
+                          <Download className="w-4 h-4 mr-2" /> Upload de video
+                          <input
+                            type="file"
+                            accept="video/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setExternalVideo(file);
+                                updateNode(selectedNode.id, 'file', file);
+                              }
+                            }}
+                          />
+                        </label>
+                      </>
+                    )}
+                    {state === 'recording' && (
+                      <>
+                        <Button onClick={pause} variant="outline"><Pause className="w-4 h-4 mr-2" /> Pausar</Button>
+                        <Button onClick={stop} className="bg-zinc-900 hover:bg-zinc-800 text-white"><Square className="w-4 h-4 mr-2 fill-current" /> Parar</Button>
+                      </>
+                    )}
+                    {state === 'paused' && (
+                      <>
+                        <Button onClick={resume} className="bg-[var(--primary)] hover:bg-[#A93226] text-white"><Play className="w-4 h-4 mr-2" /> Retomar</Button>
+                        <Button onClick={stop} className="bg-zinc-900 text-white"><Square className="w-4 h-4 mr-2 fill-current" /> Parar</Button>
+                      </>
+                    )}
+                    {state === 'stopped' && (
+                      <>
+                        <Button onClick={downloadVideo} className="bg-[var(--accent)] hover:bg-[#D35400] text-white"><Download className="w-4 h-4 mr-2" /> Baixar</Button>
+                        <Button onClick={reset} variant="outline">Nova gravacao</Button>
+                      </>
+                    )}
+                  </CardFooter>
+                )}
+              </Card>
+
+              <Card className="border-0 shadow-xl bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md">
+                <CardHeader>
+                  <CardTitle>Detalhes do Conteudo</CardTitle>
+                  <CardDescription>Mesmo formulario da pagina de criacao de conteudo.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor={`content-title-${selectedNode.id}`}>Titulo da Aula / Material</Label>
+                    <Input
+                      id={`content-title-${selectedNode.id}`}
+                      value={selectedNode.title}
+                      onChange={(e) => updateNode(selectedNode.id, 'title', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`content-desc-${selectedNode.id}`}>Descricao / Ementa</Label>
+                    <RichTextEditor
+                      value={selectedNode.description || ''}
+                      placeholder="Descreva brevemente o conteudo desta aula..."
+                      onChange={(html) => updateNode(selectedNode.id, 'description', html)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Upload Auxiliar</Label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <label className="border border-dashed border-border rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors group relative">
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => updateNode(selectedNode.id, 'thumbnailFile', e.target.files?.[0] || null)} />
+                        <ImageIcon className={`w-8 h-8 mb-2 ${selectedNode.thumbnailFile ? 'text-[var(--primary)]' : 'text-muted-foreground group-hover:text-[var(--primary)]'}`} />
+                        <span className="text-sm font-medium line-clamp-1">{selectedNode.thumbnailFile ? selectedNode.thumbnailFile.name : 'Thumbnail da Aula'}</span>
+                      </label>
+                      <label className="border border-dashed border-border rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors group relative">
+                        <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" className="hidden" onChange={(e) => updateNode(selectedNode.id, 'pdfFile', e.target.files?.[0] || null)} />
+                        <FileText className={`w-8 h-8 mb-2 ${selectedNode.pdfFile ? 'text-[var(--accent)]' : 'text-muted-foreground group-hover:text-[var(--accent)]'}`} />
+                        <span className="text-sm font-medium line-clamp-1">{selectedNode.pdfFile ? selectedNode.pdfFile.name : 'PDF e E-books'}</span>
+                      </label>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => { releaseCamera(); setContentModalNodeId(null); }}>
+              Concluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <div className="flex gap-2">
+          <Button variant="outline" onClick={() => handleSave(false)} disabled={saving}>
+            Salvar Rascunho
+          </Button>
+          <Button 
+            onClick={() => handleSave(true)} 
+            disabled={saving}
+            className="bg-[var(--primary)] text-white hover:bg-[#A93226]"
+          >
+            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            Publicar Trilha
+          </Button>
+        </div>
     </div>
   );
 }

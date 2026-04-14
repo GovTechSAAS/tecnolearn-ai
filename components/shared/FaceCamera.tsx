@@ -18,7 +18,7 @@ export default function FaceCamera({ overlayMode, onDetect, isProcessing = false
   const isMounted = useRef(true);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState('');
-  const { modelsLoaded } = useFaceApi();
+  const { modelsLoaded, modelsLoading, modelsError, reloadModels } = useFaceApi();
 
   const startCamera = async () => {
     try {
@@ -123,11 +123,24 @@ export default function FaceCamera({ overlayMode, onDetect, isProcessing = false
          </div>
       )}
 
-      {!modelsLoaded && stream && (
+      {modelsLoading && stream && (
          <div className="absolute inset-0 z-20 bg-zinc-900/80 backdrop-blur-sm flex flex-col items-center justify-center text-white">
            <div className="w-10 h-10 border-4 border-t-transparent border-[var(--primary)] rounded-full animate-spin mb-4"></div>
            <p className="font-medium animate-pulse">Carregando IA Neural de Reconhecimento...</p>
          </div>
+      )}
+
+      {!modelsLoading && modelsError && stream && (
+        <div className="absolute inset-0 z-20 bg-zinc-900/85 backdrop-blur-sm flex flex-col items-center justify-center text-white p-6 text-center">
+          <AlertTriangle className="w-10 h-10 text-amber-400 mb-3" />
+          <p className="font-semibold mb-2">Falha ao carregar IA Neural</p>
+          <p className="text-sm text-zinc-300 max-w-md mb-4">
+            Verifique se os modelos existem em `public/models` e tente novamente.
+          </p>
+          <Button onClick={reloadModels} className="bg-[var(--accent)] hover:bg-[#D35400] text-white">
+            Tentar novamente
+          </Button>
+        </div>
       )}
 
       {/* Renderiza Câmera */}
