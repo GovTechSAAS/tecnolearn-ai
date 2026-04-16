@@ -45,6 +45,36 @@ export default function PlayerControllerPage({ params }: { params: Promise<{ ses
     subscribeToSession();
   }, [sessionId]); // eslint-disable-line
 
+  // Sincronização robusta (Fallback para o Realtime) para avançar a tela se perder o evento
+  useEffect(() => {
+    if (!sessionId) return;
+    const fetchSession = async () => {
+      const supabase = createClient();
+      const { data: sessData } = await supabase
+        .from('quiz_sessions')
+        .select('id, status, current_question_id')
+        .eq('id', sessionId)
+        .single();
+
+      if (sessData) {
+        setSession((prevSess) => {
+          if (prevSess?.current_question_id !== sessData.current_question_id) {
+            setAnswered(false);
+            setIsCorrectResult(null);
+            if (sessData.current_question_id) fetchOptions(sessData.current_question_id);
+          } else if (prevSess?.status !== sessData.status) {
+            // Em caso de finalização da partida, por exemplo
+          }
+          return sessData;
+        });
+      }
+    };
+    
+    // Roda o fallback a cada 1,5 segundos (Garante a troca rápida se Realtime falhar)
+    const interval = setInterval(fetchSession, 1500);
+    return () => clearInterval(interval);
+  }, [sessionId]);
+
   const subscribeToSession = async () => {
     const supabase = createClient();
 
@@ -70,15 +100,17 @@ export default function PlayerControllerPage({ params }: { params: Promise<{ ses
         (payload) => {
           const updatedSess = payload.new as QuizSession;
 
-          // Se a pergunta mudou, reseta o controlle
-          if (session?.current_question_id !== updatedSess.current_question_id) {
-            setAnswered(false);
-            setIsCorrectResult(null);
-            if (updatedSess.current_question_id) {
-              fetchOptions(updatedSess.current_question_id);
-            }
-          }
-          setSession(updatedSess);
+          setSession((prevSess) => {
+             // Se a pergunta mudou, reseta o controlle
+             if (prevSess?.current_question_id !== updatedSess.current_question_id) {
+               setAnswered(false);
+               setIsCorrectResult(null);
+               if (updatedSess.current_question_id) {
+                 fetchOptions(updatedSess.current_question_id);
+               }
+             }
+             return updatedSess;
+          });
         }
       )
       .subscribe();

@@ -53,9 +53,41 @@ export default function HostQuizPage({ params }: { params: Promise<{ id: string 
 
     // Cleanup
     return () => {
-      // Idealmente, encerrar sessão se sair prematuramente, ou apenas deixar orfã
+      // Cleanup de listeners seria ideal aqui
     };
   }, [profile?.id]); // eslint-disable-line
+
+  // Sincronização robusta (Fallback para o Realtime)
+  useEffect(() => {
+    if (!session?.id) return;
+
+    const fetchCounts = async () => {
+      const supabase = createClient();
+      
+      // Update participants
+      if (session.status === 'waiting') {
+        const { data: pData } = await supabase
+          .from('quiz_participants')
+          .select('*')
+          .eq('session_id', session.id);
+        if (pData) setParticipants(pData);
+      }
+
+      // Update answers if active
+      if (session.status === 'active' && session.current_question_id) {
+        const { count } = await supabase
+          .from('quiz_answers')
+          .select('*', { count: 'exact', head: true })
+          .eq('session_id', session.id)
+          .eq('question_id', session.current_question_id);
+          
+        if (count !== null) setAnswersCount(count);
+      }
+    };
+
+    const interval = setInterval(fetchCounts, 2000);
+    return () => clearInterval(interval);
+  }, [session]);
 
   const initHostSession = async () => {
     try {
