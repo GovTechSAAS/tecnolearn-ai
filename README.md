@@ -45,7 +45,7 @@ OPENROUTER_API_KEY=sua-chave-ia
 ```bash
 npm run dev
 ```
-Acesse `http://localhost:3000`. O middleware automaticamente enviará visitantes para `/login` e usuários autenticados para `/dashboard`.
+Acesse `http://tecnolearn-ai.vercel.app`. O middleware automaticamente enviará visitantes para `/login` e usuários autenticados para `/dashboard`.
 
 ## 🛡️ Modelos de Face API (Machine Learning)
 Os modelos pesos para a detecção `.json/shard` estão estáticos na pasta `/public/models/`. Foram processados via `download-models.js`. Não os remova ou a câmera `<FaceCamera>` falhará a inicialização. A execução é restrita ao browser do usuário garantindo total privacidade biométrica (Zero Server-Side Storage para os feeds de vídeo).

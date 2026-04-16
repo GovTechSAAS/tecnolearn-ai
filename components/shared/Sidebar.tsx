@@ -16,7 +16,8 @@ import {
   LogOut,
   BrainCircuit,
   X,
-  Menu
+  Menu,
+  Gamepad2
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -33,6 +34,7 @@ export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, show: true },
     { name: 'Trilhas', href: '/trilhas', icon: Map, show: true },
     { name: 'Criar Conteúdo', href: '/conteudo/criar', icon: Video, show: permissions.canCreateContent },
+    { name: 'Quizzes Ativos', href: '/quizzes', icon: Gamepad2, show: permissions.canCreateContent },
     { name: 'Chamada Virtual', href: '/chamada', icon: Camera, show: permissions.canTakeAttendance },
     { name: 'Segurança', href: '/seguranca', icon: ShieldAlert, show: permissions.canManageSecurity },
     { name: 'Chat LUMI', href: '/chat', icon: MessageSquare, show: permissions.canViewChat },
