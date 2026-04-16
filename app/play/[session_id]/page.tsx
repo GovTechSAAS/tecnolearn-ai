@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { Loader2, HelpCircle, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 
 type QuizSession = {
   id: string;
@@ -67,13 +68,13 @@ export default function PlayerControllerPage({ params }: { params: Promise<{ ses
         { event: 'UPDATE', schema: 'public', table: 'quiz_sessions', filter: `id=eq.${sessionId}` },
         (payload) => {
           const updatedSess = payload.new as QuizSession;
-          
+
           // Se a pergunta mudou, reseta o controlle
           if (session?.current_question_id !== updatedSess.current_question_id) {
             setAnswered(false);
             setIsCorrectResult(null);
             if (updatedSess.current_question_id) {
-               fetchOptions(updatedSess.current_question_id);
+              fetchOptions(updatedSess.current_question_id);
             }
           }
           setSession(updatedSess);
@@ -164,14 +165,15 @@ export default function PlayerControllerPage({ params }: { params: Promise<{ ses
 
     return (
       <div className="min-h-screen bg-[#F4F4F4] grid grid-cols-2 grid-rows-2 gap-2 p-2">
-         {/* Tailwind clip-path util classes não nativas precisam de polyfill, então usaremos icones ou divis de forma */}
-         <style dangerouslySetInnerHTML={{__html: `
+        {/* Tailwind clip-path util classes não nativas precisam de polyfill, então usaremos icones ou divis de forma */}
+        <style dangerouslySetInnerHTML={{
+          __html: `
             .clip-path-triangle { clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
             .clip-path-diamond { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
             .clip-path-circle { border-radius: 50%; }
             .clip-path-square { border-radius: 12px; }
          `}} />
-         
+
         {options.map((opt, idx) => {
           const style = SHAPES[idx % 4];
           return (
