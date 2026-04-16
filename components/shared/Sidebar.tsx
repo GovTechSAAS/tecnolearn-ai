@@ -50,7 +50,7 @@ export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
       <div className="h-16 flex items-center justify-between px-6 border-b border-border">
         <Link href="/dashboard" className="flex items-center gap-2 font-bold text-xl tracking-tight text-[var(--primary)] hover:opacity-80 transition-opacity">
           <BrainCircuit size={28} />
-          <span>learnapp</span>
+          <span>Tecnolearn</span>
         </Link>
         {/* Close button for mobile */}
         {onClose && (

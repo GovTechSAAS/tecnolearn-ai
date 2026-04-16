@@ -48,7 +48,7 @@ export default function LoginPage() {
         </div>
         <CardTitle className="text-3xl font-bold tracking-tight">Bem-vindo(a) de volta</CardTitle>
         <CardDescription className="text-base">
-          Acesse a plataforma learnapp
+          Acesse a plataforma Tecnolearn
         </CardDescription>
       </CardHeader>
 

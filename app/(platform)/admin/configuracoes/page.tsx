@@ -67,13 +67,13 @@ export default function ConfigsPage() {
               <Building2 className="text-[var(--primary)]" />
               Dados da Instituição
             </CardTitle>
-            <CardDescription>Personalização Whitelabel da learnapp</CardDescription>
+            <CardDescription>Personalização Whitelabel da Tecnolearn</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="inst-name">Nome da Instituição</Label>
-                <Input id="inst-name" defaultValue="Escola learnapp" />
+                <Input id="inst-name" defaultValue="Escola Tecnolearn" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="inst-domain">Domínio</Label>

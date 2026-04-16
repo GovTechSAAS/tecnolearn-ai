@@ -13,7 +13,7 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: 'learnapp - Plataforma EAD',
+  title: 'Tecnolearn - Plataforma EAD',
   description: 'Plataforma EAD educacional completa, moderna e modular.',
 };
 
