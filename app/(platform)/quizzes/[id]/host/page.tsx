@@ -86,18 +86,41 @@ export default function HostQuizPage({ params }: { params: Promise<{ id: string 
         return;
       }
 
-      // 2. Create new Session
-      const { data: sessData, error: sessErr } = await supabase
+      // 2. Check for existing waiting session or Create a new one
+      let sessData;
+      const { data: existingSess } = await supabase
         .from('quiz_sessions')
-        .insert({
-          quiz_id: quizId,
-          host_id: profile!.id,
-          status: 'waiting'
-        })
-        .select()
+        .select('*')
+        .eq('quiz_id', quizId)
+        .eq('host_id', profile!.id)
+        .eq('status', 'waiting')
         .single();
+        
+      if (existingSess) {
+        sessData = existingSess;
+        // Fetch existing participants if any
+        const { data: existingParts } = await supabase
+          .from('quiz_participants')
+          .select('*')
+          .eq('session_id', sessData.id);
+        if (existingParts) {
+          setParticipants(existingParts);
+        }
+      } else {
+        const { data: newSess, error: sessErr } = await supabase
+          .from('quiz_sessions')
+          .insert({
+            quiz_id: quizId,
+            host_id: profile!.id,
+            status: 'waiting'
+          })
+          .select()
+          .single();
 
-      if (sessErr) throw sessErr;
+        if (sessErr) throw sessErr;
+        sessData = newSess;
+      }
+
       setSession(sessData);
 
       // 3. Subscribe to Participants

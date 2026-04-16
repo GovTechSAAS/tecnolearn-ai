@@ -28,6 +28,7 @@ export default function PlayerControllerPage({ params }: { params: Promise<{ ses
 
   const [session, setSession] = useState<QuizSession | null>(null);
   const [participantId, setParticipantId] = useState<string | null>(null);
+  const [questionTitle, setQuestionTitle] = useState<string>('');
   const [options, setOptions] = useState<any[]>([]);
   const [answered, setAnswered] = useState(false);
   const [isCorrectResult, setIsCorrectResult] = useState<boolean | null>(null);
@@ -85,6 +86,14 @@ export default function PlayerControllerPage({ params }: { params: Promise<{ ses
 
   const fetchOptions = async (questionId: string) => {
     const supabase = createClient();
+
+    const { data: qData } = await supabase
+      .from('quiz_questions')
+      .select('title')
+      .eq('id', questionId)
+      .single();
+    if (qData) setQuestionTitle(qData.title);
+
     const { data } = await supabase
       .from('quiz_options')
       .select('id, text, is_correct')
@@ -164,28 +173,38 @@ export default function PlayerControllerPage({ params }: { params: Promise<{ ses
     }
 
     return (
-      <div className="min-h-screen bg-[#F4F4F4] grid grid-cols-2 grid-rows-2 gap-2 p-2">
-        {/* Tailwind clip-path util classes não nativas precisam de polyfill, então usaremos icones ou divis de forma */}
-        <style dangerouslySetInnerHTML={{
-          __html: `
-            .clip-path-triangle { clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
-            .clip-path-diamond { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
-            .clip-path-circle { border-radius: 50%; }
-            .clip-path-square { border-radius: 12px; }
-         `}} />
+      <div className="min-h-screen bg-[#F4F4F4] flex flex-col p-4">
+        {/* Título da Pergunta exibido para o aluno */}
+        <div className="w-full bg-white dark:bg-zinc-900 rounded-3xl shadow-sm border border-border p-6 mb-4 flex items-center justify-center min-h-[120px]">
+           <h2 className="text-xl md:text-3xl font-black text-foreground text-center break-words">{questionTitle}</h2>
+        </div>
 
-        {options.map((opt, idx) => {
-          const style = SHAPES[idx % 4];
-          return (
-            <button
-              key={opt.id}
-              onClick={() => submitAnswer(opt.id, opt.is_correct)}
-              className={`${style.color} w-full h-full flex items-center justify-center shadow-[inset_0_-8px_0_rgba(0,0,0,0.2)] hover:brightness-110 active:translate-y-2 active:shadow-[inset_0_-0px_0_rgba(0,0,0,0.2)] transition-all rounded-md`}
-            >
-              <div className={`w-20 h-20 md:w-32 md:h-32 bg-white/20 ${style.shape}`} />
-            </button>
-          );
-        })}
+        <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-2">
+          {/* Tailwind clip-path util classes não nativas precisam de polyfill, então usaremos icones ou divis de forma */}
+          <style dangerouslySetInnerHTML={{
+            __html: `
+              .clip-path-triangle { clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
+              .clip-path-diamond { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
+              .clip-path-circle { border-radius: 50%; }
+              .clip-path-square { border-radius: 12px; }
+            `}} />
+
+          {options.map((opt, idx) => {
+            const style = SHAPES[idx % 4];
+            return (
+              <button
+                key={opt.id}
+                onClick={() => submitAnswer(opt.id, opt.is_correct)}
+                className={`${style.color} w-full h-full flex flex-col items-center justify-center shadow-[inset_0_-8px_0_rgba(0,0,0,0.2)] hover:brightness-110 active:translate-y-2 active:shadow-[inset_0_-0px_0_rgba(0,0,0,0.2)] transition-all rounded-xl p-4 text-white overflow-hidden`}
+              >
+                <div className={`w-8 h-8 md:w-16 md:h-16 bg-white/30 ${style.shape} mb-3 flex-shrink-0`} />
+                <span className="text-lg md:text-2xl font-bold text-center break-words max-w-full drop-shadow-md line-clamp-3">
+                  {opt.text}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     );
   }
